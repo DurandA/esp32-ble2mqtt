@@ -2,6 +2,7 @@
 #include "broadcasters.h"
 #include "ble.h"
 #include "ble_utils.h"
+#include "gps.h"
 #include "log.h"
 #include "mqtt.h"
 #include "ota.h"
@@ -154,6 +155,7 @@ static void cleanup(void)
     ble_disconnect_all();
     ble_scan_stop();
     ota_unsubscribe();
+    gps_stop();
 }
 
 /* Wi-Fi callback functions */
@@ -184,6 +186,7 @@ static void mqtt_on_connected(void)
     self_publish();
     ota_subscribe();
     ble_scan_start();
+    gps_start();
 }
 
 static void mqtt_on_disconnected(void)
@@ -788,6 +791,9 @@ void app_main()
     ble_set_on_device_characteristic_value_cb(
         _ble_on_device_characteristic_value);
     ble_set_on_passkey_requested_cb(ble_on_passkey_requested);
+
+    /* Init GPS */
+    ESP_ERROR_CHECK(gps_initialize());
 
     /* Start BLE2MQTT task */
     ESP_ERROR_CHECK(start_ble2mqtt_task());
