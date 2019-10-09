@@ -182,12 +182,12 @@ static void gps_on_event(void *event_handler_arg, esp_event_base_t event_base, i
             sprintf(payload, "%.05f,%.05f", gps->latitude, gps->longitude);
             snprintf(topic, MAX_TOPIC_LEN, "%s/Position", device_name_get());
             mqtt_publish(topic, (uint8_t *)payload, strlen(payload),
-            config_mqtt_qos_get(), config_mqtt_retained_get());
+                         config_mqtt_qos_get(), config_mqtt_retained_get());
 
             sprintf(payload, "%f", gps->speed);
             snprintf(topic, MAX_TOPIC_LEN, "%s/Speed", device_name_get());
             mqtt_publish(topic, (uint8_t *)payload, strlen(payload),
-            config_mqtt_qos_get(), config_mqtt_retained_get());
+                         config_mqtt_qos_get(), config_mqtt_retained_get());
         }
         break;
     case GPS_UNKNOWN:

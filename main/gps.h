@@ -3,7 +3,7 @@
 
 #include "nmea_parser.h"
 
-#define GPS_TX_PIN (12)
+#define GPS_TX_PIN (33)
 #define TIME_ZONE (+2)   //Bern Time
 #define YEAR_BASE (2000) //date in GPS starts from 2000
 
