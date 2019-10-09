@@ -606,12 +606,14 @@ static void ble2mqtt_handle_event(event_t *event)
 static void ble2mqtt_task(void *pvParameter)
 {
     event_t *event;
+    TaskHandle_t *ui_handle = (TaskHandle_t*)pvParameter;
 
     while (1)
     {
         if (xQueueReceive(event_queue, &event, portMAX_DELAY) != pdTRUE)
             continue;
 
+        xTaskNotify(*ui_handle, 1 << event->type, eSetBits);
         ble2mqtt_handle_event(event);
     }
 
@@ -628,6 +630,38 @@ static void heartbeat_timer_cb(TimerHandle_t xTimer)
     xQueueSend(event_queue, &event, portMAX_DELAY);
 }
 
+#define LED_GPIO 10
+#define WIFI_CONNECTED_BIT     ( 1 << EVENT_TYPE_WIFI_CONNECTED )
+#define WIFI_DISCONNECTED_BIT  ( 1 << EVENT_TYPE_WIFI_DISCONNECTED )
+#define MQTT_CONNECTED_BIT     ( 1 << EVENT_TYPE_MQTT_CONNECTED )
+#define MQTT_DISCONNECTED_BIT  ( 1 << EVENT_TYPE_MQTT_DISCONNECTED )
+
+static void ui_task(void *pvParameter)
+{
+    gpio_pad_select_gpio(LED_GPIO);
+    gpio_set_direction(LED_GPIO, GPIO_MODE_OUTPUT);
+    event_type_t ev;
+    int duty = 2000;
+    while(1) {
+        if (xTaskNotifyWait(
+                0 & (WIFI_CONNECTED_BIT | WIFI_DISCONNECTED_BIT | MQTT_CONNECTED_BIT | WIFI_DISCONNECTED_BIT),
+                (ev >> 1) | WIFI_DISCONNECTED_BIT | MQTT_DISCONNECTED_BIT,
+                &ev, 1) == pdTRUE)
+        {
+            if (ev & MQTT_CONNECTED_BIT)
+                duty = 100;
+            else if (ev & WIFI_CONNECTED_BIT)
+                duty = 1000;
+            else
+                duty = 2000;
+        }
+        gpio_set_level(LED_GPIO, 0);
+        vTaskDelay(duty / portTICK_PERIOD_MS);
+        gpio_set_level(LED_GPIO, 1);
+        vTaskDelay((2000 - duty) / portTICK_PERIOD_MS);
+    }
+}
+
 static int start_ble2mqtt_task(void)
 {
     TimerHandle_t hb_timer;
@@ -635,7 +669,10 @@ static int start_ble2mqtt_task(void)
     if (!(event_queue = xQueueCreate(10, sizeof(event_t *))))
         return -1;
 
-    if (xTaskCreatePinnedToCore(ble2mqtt_task, "ble2mqtt_task", 4096, NULL, 5,
+    static TaskHandle_t ui_handle;
+    xTaskCreate(ui_task, "ui_task", 1024, NULL, 2, &ui_handle);
+
+    if (xTaskCreatePinnedToCore(ble2mqtt_task, "ble2mqtt_task", 4096, (void*)&ui_handle, 5,
         NULL, 1) != pdPASS)
     {
         return -1;
